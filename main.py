@@ -157,23 +157,26 @@ def main():
 
     mail = imaplib.IMAP4_SSL(imap_host)
 
-# Login
-mail.login(yahoo_user, yahoo_app_pass)
+    # Login
+    mail.login(yahoo_user, yahoo_app_pass)
 
-# Select inbox (must be in SELECTED state before SEARCH)
-status, _ = mail.select("INBOX", readonly=True)
-if status != "OK":
-    # Fallbacks some Yahoo accounts use
-    status, _ = mail.select("Inbox", readonly=True)
+    # Select inbox (must be in SELECTED state before SEARCH)
+    status, _ = mail.select("INBOX", readonly=True)
+    if status != "OK":
+        # Fallbacks some Yahoo accounts use
+        status, _ = mail.select("Inbox", readonly=True)
 
-if status != "OK":
-    raise RuntimeError(f"Could not select INBOX. IMAP status={status}")
+    if status != "OK":
+        raise RuntimeError(f"Could not select INBOX. IMAP status={status}")
 
 
     # IMAP uses dates (day granularity). We'll fetch yesterday and then filter by exact timestamps.
     imap_date = start.strftime("%d-%b-%Y")  # e.g., 16-Dec-2025
     typ, data = mail.search(None, f'(SINCE "{imap_date}")')
+    if typ != "OK":
+        raise RuntimeError(f"IMAP search failed: {typ} {data}")
     ids = data[0].split()
+
 
     candidates = []
     for eid in ids:
