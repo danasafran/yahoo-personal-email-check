@@ -94,10 +94,14 @@ def score_email(from_addr, subject, body):
     ls = (subject or "").lower()
     lb = (body or "").lower()
 
+    score = 0
+    reasons = []
+
     # System / FYI senders: keep them, but do not treat as "personal"
     if any(x in lf for x in SYSTEM_SENDERS):
         score -= 10
         reasons.append("system sender")
+
 
     score = 0
     reasons = []
