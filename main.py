@@ -15,6 +15,17 @@ import re
 LIKELY_THRESHOLD = 6
 MAYBE_THRESHOLD = 4
 
+SYSTEM_SENDERS = [
+    "usps",
+    "informeddelivery",
+    "walmart",
+    "walmart.com",
+    "wm.com",
+    "wastemanagement",
+    "waste management",
+]
+
+
 MARKETING_SUBJECT_WORDS = [
     "sale", "deal", "offer", "discount", "promo", "newsletter", "save", "clearance", "% off"
 ]
@@ -82,6 +93,11 @@ def score_email(from_addr, subject, body):
     lf = (from_addr or "").lower()
     ls = (subject or "").lower()
     lb = (body or "").lower()
+
+    # System / FYI senders: keep them, but do not treat as "personal"
+    if any(x in lf for x in SYSTEM_SENDERS):
+        score -= 10
+        reasons.append("system sender")
 
     score = 0
     reasons = []
@@ -219,13 +235,14 @@ def main():
     # Sort by score, then newest
     candidates.sort(key=lambda x: (x["score"], x["date"]), reverse=True)
 
-    likely = [c for c in candidates if c["score"] >= LIKELY_THRESHOLD]
-    maybe = [c for c in candidates if MAYBE_THRESHOLD <= c["score"] < LIKELY_THRESHOLD]
+    likely = [c for c in likely if "system sender" not in c["reasons"]]
+    maybe  = [c for c in maybe  if "system sender" not in c["reasons"]]
+    system = [c for c in candidates if "system sender" in c["reasons"]]
 
     date_label = start.strftime("%a %b %d, %Y")
     email_subject = f"Personal Email Check (Yahoo) — {start.strftime('%b %d')}"
 
-    if not likely and not maybe:
+    if not likely and not maybe and not system:
         html = f"""
         <div style="font-family:Arial,sans-serif;line-height:1.4">
           <h3 style="margin:0 0 8px 0;">Personal Email Check (Yahoo)</h3>
@@ -261,6 +278,7 @@ def main():
       <p style="margin:0 0 16px 0;"><b>{date_label}</b></p>
       {render_section("Likely personal", likely)}
       {render_section("Maybe personal", maybe)}
+      {render_section("System / FYI (orders, mail, services)", system)}
       <hr style="border:none;border-top:1px solid #ddd;margin:16px 0;" />
       <p style="color:#666;margin:0;">This is heuristic scoring. We can tune it after 1–2 runs.</p>
     </div>
