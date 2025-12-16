@@ -16,14 +16,22 @@ LIKELY_THRESHOLD = 8
 MAYBE_THRESHOLD = 6
 
 SYSTEM_SENDERS = [
+    # USPS
     "usps",
     "informeddelivery",
-    "walmart",
+
+    # Retail / Orders
+    "amazon.com",
     "walmart.com",
+
+    # Utilities / Services
     "wm.com",
     "wastemanagement",
-    "waste management",
+
+    # ISPs / Bills
+    "comcast.net",
 ]
+
 
 MARKETING_SUBJECT_WORDS = [
     "sale", "deal", "offer", "discount", "promo", "newsletter", "save", "clearance", "% off"
