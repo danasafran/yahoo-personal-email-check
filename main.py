@@ -12,8 +12,8 @@ import re
 # -----------------------
 # Settings (human scoring)
 # -----------------------
-LIKELY_THRESHOLD = 6
-MAYBE_THRESHOLD = 4
+LIKELY_THRESHOLD = 8
+MAYBE_THRESHOLD = 6
 
 SYSTEM_SENDERS = [
     "usps",
@@ -24,7 +24,6 @@ SYSTEM_SENDERS = [
     "wastemanagement",
     "waste management",
 ]
-
 
 MARKETING_SUBJECT_WORDS = [
     "sale", "deal", "offer", "discount", "promo", "newsletter", "save", "clearance", "% off"
@@ -98,13 +97,28 @@ def score_email(from_addr, subject, body):
     reasons = []
 
     # System / FYI senders: keep them, but do not treat as "personal"
-    if any(x in lf for x in SYSTEM_SENDERS):
+    is_system = any(x in lf for x in SYSTEM_SENDERS)
+    if is_system:
         score -= 10
         reasons.append("system sender")
 
+   
+    if is_system:
+        # For system messages, skip "conversational" scoring
+        convo_hits = 0
+    else:
+        convo_hits = 0
+        for pat in [r"\bhi\b", r"\bhey\b", r"\bthanks\b", r"\bthank you\b",
+                    r"\bcan you\b", r"\bcould you\b", r"\blet me know\b", r"\bplease\b",
+                    r"\bchecking in\b", r"\bquick question\b", r"\bare you free\b", r"\bcall me\b", r"\btext me\b"]:
+            if re.search(pat, lb):
+                convo_hits += 1
+                
+    if convo_hits >= 3:
+        score += 2; reasons.append("conversational tone")
+    elif convo_hits == 2:
+        score += 1; reasons.append("some conversational cues")
 
-    score = 0
-    reasons = []
 
     body_len = len(body.strip())
 
@@ -113,18 +127,6 @@ def score_email(from_addr, subject, body):
         score += 2; reasons.append("short body")
     elif 1200 < body_len <= 4000:
         score += 1; reasons.append("medium body")
-
-    # Conversational cues (simple + effective)
-    convo_hits = 0
-    for pat in [r"\bhi\b", r"\bhey\b", r"\bthanks\b", r"\bthank you\b",
-                r"\bcan you\b", r"\bcould you\b", r"\blet me know\b", r"\bplease\b",
-                r"\bi\b", r"\bwe\b", r"\byou\b"]:
-        if re.search(pat, lb):
-            convo_hits += 1
-    if convo_hits >= 3:
-        score += 2; reasons.append("conversational tone")
-    elif convo_hits == 2:
-        score += 1; reasons.append("some conversational cues")
 
     # Penalize automation / marketing patterns
     if any(p in lf for p in AUTO_SENDER_PATTERNS):
@@ -239,9 +241,9 @@ def main():
     # Sort by score, then newest
     candidates.sort(key=lambda x: (x["score"], x["date"]), reverse=True)
 
-    likely = [c for c in likely if "system sender" not in c["reasons"]]
-    maybe  = [c for c in maybe  if "system sender" not in c["reasons"]]
     system = [c for c in candidates if "system sender" in c["reasons"]]
+    likely = [c for c in candidates if c["score"] >= LIKELY_THRESHOLD and "system sender" not in c["reasons"]]
+    maybe  = [c for c in candidates if MAYBE_THRESHOLD <= c["score"] < LIKELY_THRESHOLD and "system sender" not in c["reasons"]]
 
     date_label = start.strftime("%a %b %d, %Y")
     email_subject = f"Personal Email Check (Yahoo) — {start.strftime('%b %d')}"
